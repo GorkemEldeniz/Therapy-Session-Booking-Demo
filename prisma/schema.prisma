@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(uuid())
+  role         Role
+  email        String        @unique
+  password     String
+  name         String
+  surname      String
+  phoneNumber  String?
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  expert       Expert?
+  appointments Appointment[]
+  payments     Payment[]
+
+  // İndeksleme: Kullanıcıların uzmanları listelemesi için
+  @@index([role])
+}
+
+model Expert {
+  id           String        @id @default(uuid())
+  userId       String        @unique
+  bio          String?
+  rating       Float         @default(0)
+  availability Json
+  createdAt    DateTime      @default(now())
+  user         User          @relation(fields: [userId], references: [id])
+  services     Service[]
+  appointments Appointment[]
+  payments     Payment[]
+
+  // İndeksleme: Availability üzerinden listeleme
+  @@index([availability])
+}
+
+model Service {
+  id           String        @id @default(uuid())
+  expertId     String
+  name         String
+  duration     Int // Dakika cinsinden
+  price        Decimal
+  description  String?
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  expert       Expert        @relation(fields: [expertId], references: [id])
+  appointments Appointment[]
+
+  // İndeksleme: Hizmet adına göre listeleme
+  @@index([name])
+}
+
+model Appointment {
+  id              String            @id @default(uuid())
+  userId          String
+  expertId        String
+  serviceId       String
+  appointmentDate DateTime
+  status          AppointmentStatus
+  sessionLink     String?
+  notes           String?
+  createdAt       DateTime          @default(now())
+  user            User              @relation(fields: [userId], references: [id])
+  expert          Expert            @relation(fields: [expertId], references: [id])
+  service         Service           @relation(fields: [serviceId], references: [id])
+  payment         Payment?
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  appointmentId String        @unique
+  userId        String
+  expertId      String
+  amount        Decimal
+  paymentDate   DateTime      @default(now())
+  paymentMethod PaymentMethod
+  status        PaymentStatus
+  appointment   Appointment   @relation(fields: [appointmentId], references: [id])
+  user          User          @relation(fields: [userId], references: [id])
+  expert        Expert        @relation(fields: [expertId], references: [id])
+}
+
+enum Role {
+  USER
+  EXPERT
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  PAYPAL
+  BANK_TRANSFER
+}
